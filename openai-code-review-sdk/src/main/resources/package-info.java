@@ -1,0 +1,1 @@
+// 1.MANIFEST.MF ： 用来标识sdk的入口方法
