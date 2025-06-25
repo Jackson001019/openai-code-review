@@ -1,6 +1,13 @@
 package com.zhihao.sdk;
 
+import com.alibaba.fastjson2.JSON;
+import com.zhihao.sdk.domain.model.ChatCompletionSyncResponse;
+import com.zhihao.sdk.types.utils.BearerTokenUtils;
+
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author Jackson
@@ -35,7 +42,59 @@ public class OpenAiCodeReview {
         int exitCode = process.waitFor();
         System.out.println("Exited with code " + exitCode);
         // 打印差异内容
-        System.out.println("review code："+ diffCode.toString());
+        System.out.println("Different code："+ diffCode.toString());
+
+        String codeReviewResult = codeReview(diffCode.toString());
+        System.out.println(codeReviewResult);
+
+    }
+
+    private static String codeReview(String diffCode) throws Exception {
+        String apiKeySecret = "54ec5157408547c1b3877d3f15e6759a.kcT9ohABVZJlhNf2";
+        String token = BearerTokenUtils.getToken(apiKeySecret);
+
+        URL url = new URL("https://open.bigmodel.cn/api/paas/v4/chat/completions");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Authorization", "Bearer " + token);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("User-Agent", "Mozilla/4.0 (compatible; MSIE 5.0; Windows NT; DigExt)");
+        connection.setDoOutput(true);
+
+        String jsonInpuString = "{"
+                + "\"model\":\"glm-4-flash\","
+                + "\"messages\": ["
+                + "    {"
+                + "        \"role\": \"user\","
+                + "        \"content\": \"你是一个高级编程架构师，精通各类场景方案、架构设计和编程语言请，请您根据git diff记录，对代码做出评审。代码为: " + diffCode + "\""
+                + "    }"
+                + "]"
+                + "}";
+
+        // 程序🤔connection发送信息，所以是output
+        try(OutputStream os = connection.getOutputStream()){
+            byte[] input = jsonInpuString.getBytes(StandardCharsets.UTF_8);
+            os.write(input);
+        }
+
+        int responseCode = connection.getResponseCode();
+        System.out.println("chatglm api response code: " + responseCode);
+
+        // connection的服务端向我们程序发送信息，即程序为接收方，所以是input
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+
+        StringBuilder content = new StringBuilder();
+        while ((inputLine = in.readLine()) != null){
+            content.append(inputLine);
+        }
+
+        in.close();
+        connection.disconnect();
+
+        ChatCompletionSyncResponse response = JSON.parseObject(content.toString(), ChatCompletionSyncResponse.class);
+        return response.getChoices().get(0).getMessage().getContent();
     }
 
 }
