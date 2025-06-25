@@ -1,5 +1,8 @@
 package com.zhihao.sdk.domain.model;
 
+/*
+    智谱AI chatglm各类模型信息
+ */
 public enum Model {
 
     @Deprecated

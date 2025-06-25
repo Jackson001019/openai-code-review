@@ -4,11 +4,19 @@ import java.util.List;
 
 public class ChatCompletionRequest {
 
+    // 要调用的模型编码
     private String model = Model.GLM_4_FLASH.getCode();
+    // 提示prompt列表
     private List<Prompt> messages;
 
     public static class Prompt {
+        /*
+            role：消息角色
+            system-系统角色-全局对话提示（作用于整个对话上下文）
+            user-用户消息-仅限当前交互，不具备全局能力。
+         */
         private String role;
+        // 提问内容
         private String content;
 
         public Prompt() {

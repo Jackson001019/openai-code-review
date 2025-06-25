@@ -1,13 +1,16 @@
 package com.zhihao.sdk;
 
 import com.alibaba.fastjson2.JSON;
+import com.zhihao.sdk.domain.model.ChatCompletionRequest;
 import com.zhihao.sdk.domain.model.ChatCompletionSyncResponse;
+import com.zhihao.sdk.domain.model.Model;
 import com.zhihao.sdk.types.utils.BearerTokenUtils;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 /**
  * @author Jackson
@@ -62,19 +65,22 @@ public class OpenAiCodeReview {
         connection.setRequestProperty("User-Agent", "Mozilla/4.0 (compatible; MSIE 5.0; Windows NT; DigExt)");
         connection.setDoOutput(true);
 
-        String jsonInpuString = "{"
-                + "\"model\":\"glm-4-flash\","
-                + "\"messages\": ["
-                + "    {"
-                + "        \"role\": \"user\","
-                + "        \"content\": \"你是一个高级编程架构师，精通各类场景方案、架构设计和编程语言请，请您根据git diff记录，对代码做出评审。代码为: " + diffCode + "\""
-                + "    }"
-                + "]"
-                + "}";
+        // 构建chatglm请求request
+        ChatCompletionRequest chatCompletionRequest = new ChatCompletionRequest();
+        chatCompletionRequest.setModel(Model.GLM_4_FLASH.getCode());
+        chatCompletionRequest.setMessages(new ArrayList<ChatCompletionRequest.Prompt>() {   // 匿名内部类
+            // 类成员声明
+            private static final long serialVersionUID = -7988151926241837899L;
+            // 内层括号：实例初始化块
+            {
+                add(new ChatCompletionRequest.Prompt("user", "你是一个高级编程架构师，精通各类场景方案、架构设计和编程语言请，请您根据git diff记录，对代码做出评审。代码如下:"));
+                add(new ChatCompletionRequest.Prompt("user", diffCode));
+            }
+        });
 
         // 程序🤔connection发送信息，所以是output
         try(OutputStream os = connection.getOutputStream()){
-            byte[] input = jsonInpuString.getBytes(StandardCharsets.UTF_8);
+            byte[] input = JSON.toJSONString(chatCompletionRequest).getBytes(StandardCharsets.UTF_8);
             os.write(input);
         }
 
