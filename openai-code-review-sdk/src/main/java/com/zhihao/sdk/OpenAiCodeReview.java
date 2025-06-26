@@ -5,12 +5,17 @@ import com.zhihao.sdk.domain.model.ChatCompletionRequest;
 import com.zhihao.sdk.domain.model.ChatCompletionSyncResponse;
 import com.zhihao.sdk.domain.model.Model;
 import com.zhihao.sdk.types.utils.BearerTokenUtils;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Random;
 
 /**
  * @author Jackson
@@ -21,6 +26,11 @@ public class OpenAiCodeReview {
 
     public static void main(String[] args) throws Exception {
         System.out.println("OpenAiCodeReview Test Execute");
+
+        String token = System.getenv("GITHUB_TOKEN");
+        if (null == token || token.isEmpty()) {
+            throw new RuntimeException("token is null");
+        }
 
         /*执行 Git diff 操作并打印代码变更内容*/
         // 创建进程构建器执行 git diff 命令    git diff：Git差异比较命令 HEAD~1：上一次提交（当前提交的前一个版本） HEAD：当前最新提交
@@ -48,10 +58,19 @@ public class OpenAiCodeReview {
         System.out.println("Different code："+ diffCode.toString());
 
         String codeReviewResult = codeReview(diffCode.toString());
-        System.out.println(codeReviewResult);
+        System.out.println("Code review log: " + codeReviewResult);
 
+        // 3. 写入评审日志
+        String logUrl = writeLog(token, codeReviewResult);
+        System.out.println("Write log url：" + logUrl);
     }
 
+    /**
+     * 调用智谱AI模型自动根据‘差异代码’实现‘自动代码评审’
+     * @Param [diffCode] git获取的差异代码
+     * @Return java.lang.String 评审意见
+     * @Date 2025/6/26
+     **/
     private static String codeReview(String diffCode) throws Exception {
         String apiKeySecret = "54ec5157408547c1b3877d3f15e6759a.kcT9ohABVZJlhNf2";
         String token = BearerTokenUtils.getToken(apiKeySecret);
@@ -102,5 +121,65 @@ public class OpenAiCodeReview {
         ChatCompletionSyncResponse response = JSON.parseObject(content.toString(), ChatCompletionSyncResponse.class);
         return response.getChoices().get(0).getMessage().getContent();
     }
+
+    /**
+     * 将日志内容写入 GitHub 仓库
+     * @Param [token, log] [GitHub 个人访问令牌 (用于认证)， 评审意见]
+     * @Return java.lang.String 新创建文件的 GitHub 原始 URL
+     * @Date 2025/6/26
+     **/
+    private static String writeLog(String token, String log) throws Exception {
+        // 使用JGit库克隆目标仓库
+        Git git = Git.cloneRepository()
+                .setURI("https://github.com/Jackson001019/openai-code-review-log.git")
+                .setDirectory(new File("repo")) // 设置本地存储路径为repo目录
+                // 使用Github token进行认证（用户名为token 密码留空）
+                .setCredentialsProvider(new UsernamePasswordCredentialsProvider(token, ""))
+                .call();
+
+        // 按日期创建存储目录
+        String dateFolderName = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        File dateFolder = new File("repo/" + dateFolderName);
+        if (!dateFolder.exists()) {
+            dateFolder.mkdirs();
+        }
+
+        // 生成随机文件名并写入文件
+        String fileName = generateRandomString(12) + ".md";
+        File newFile = new File(dateFolder, fileName);
+        try (FileWriter writer = new FileWriter(newFile)) {
+            writer.write(log);
+        }
+
+        // 添加文件到暂存区
+        // addFilepattern()方法：该方法接受的是相对于Git仓库根目录的路径，前面JGit已经setDirectory=repo，所以不需要带前缀
+        git.add().addFilepattern(dateFolderName + "/" + fileName).call();
+        // 提交更改
+        git.commit().setMessage("Add new file via GitHub Actions").call();
+        // 推送到远程仓库
+        git.push().setCredentialsProvider(new UsernamePasswordCredentialsProvider(token, "")).call();
+
+        System.out.println("Changes have been pushed to the repository.");
+
+        // 生成文件 URL
+        return "https://github.com/Jackson001019/openai-code-review-log/blob/master/" + dateFolderName + "/" + fileName;
+    }
+
+    /**
+     * 随机字符串生成方法
+     * @Param [length]
+     * @Return java.lang.String
+     * @Date 2025/6/26
+     **/
+    private static String generateRandomString(int length) {
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        Random random = new Random();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return sb.toString();
+    }
+
 
 }
