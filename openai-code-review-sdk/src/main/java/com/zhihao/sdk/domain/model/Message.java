@@ -3,11 +3,18 @@ package com.zhihao.sdk.domain.model;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 微信模版消息通知接口 请求类
+ */
 public class Message {
 
-    private String touser = "or0Ab6ivwmypESVp_bYuk92T6SvU";
-    private String template_id = "GLlAM-Q4jdgsktdNd35hnEbHVam2mwsW2YWuxDhpQkU";
+    // 被通知用户
+    private String touser = "oUhRAvuypO29MGihBBV3UbXdOtg0";
+    // 模版消息id
+    private String template_id = "9SjU31fUtjG3bTw31CyudEZx8hP1eHP-OnlrR4eOM0A";
+    // 模版消息点击后跳转页面url
     private String url = "https://weixin.qq.com";
+    // 模版消息的数据
     private Map<String, Map<String, String>> data = new HashMap<>();
 
     public void put(String key, String value) {
